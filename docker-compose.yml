@@ -1,6 +1,23 @@
 services:
+  ollama:
+    image: ollama/ollama:latest
+    volumes:
+      - ${OLLAMA_DATA_DIR:-./.openclaw/ollama}:/root/.ollama
+    ports:
+      - "${OLLAMA_PORT:-11434}:11434"
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "ollama", "list"]
+      interval: 30s
+      timeout: 10s
+      retries: 10
+      start_period: 30s
+
   openclaw-gateway:
     image: ${OPENCLAW_IMAGE:-openclaw:local}
+    depends_on:
+      ollama:
+        condition: service_healthy
     environment:
       HOME: /home/node
       TERM: xterm-256color
@@ -75,4 +92,7 @@ services:
     init: true
     entrypoint: ["node", "dist/index.js"]
     depends_on:
-      - openclaw-gateway
+      openclaw-gateway:
+        condition: service_started
+      ollama:
+        condition: service_healthy
